@@ -1,0 +1,204 @@
+#define _USE_MATH_DEFINES
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <cstdlib>
+#include <GL/glew.h>
+#include <GLFW/glfw3.h>
+#include <chrono>
+#include <thread>
+#include <windows.h>
+#include <psapi.h>
+
+using std::cerr;
+using std::endl;
+using std::vector;
+using std::cout;
+using std::chrono::high_resolution_clock;
+using std::chrono::seconds;
+using std::chrono::duration_cast;
+
+// Constants
+const float gravity_const = 0.01f;
+const float damping_factor = 0.999f;
+const float softening = 0.01f;
+const float galaxy_distance = 2.0f;
+struct Particle {
+    float x, y, z;
+    float velocity_x, velocity_y, velocity_z;
+    float force_x, force_y, force_z;
+    float mass;
+};
+
+inline float random_float(float min, float max) {
+    return min + static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / (max - min)));
+}
+
+// initialize particles within a galaxy
+void initialize_galaxy_particles(vector<Particle>& particles, int start_idx, int n, float cx, float cy, float cz, float vx, float vy, float vz) {
+    for (int i = start_idx; i < start_idx + n; ++i) {
+        // Generate random points within a unit sphere
+        float azimuth = random_float(0.0f, 2.0f * M_PI); // Azimuthal angle
+        float polar_ang = acos(random_float(-1.0f, 1.0f));   // Polar angle
+        float r = cbrt(random_float(0.0f, 1.0f));      // Radius
+
+        particles[i].x = cx + r * sin(polar_ang) * cos(azimuth);
+        particles[i].y = cy + r * sin(polar_ang) * sin(azimuth);
+        particles[i].z = cz + r * cos(polar_ang);
+
+        particles[i].velocity_x = vx + random_float(-0.02f, 0.02f);
+        particles[i].velocity_y = vy + random_float(-0.02f, 0.02f);
+        particles[i].velocity_z = vz + random_float(-0.02f, 0.02f);
+        particles[i].mass = random_float(0.01f, 0.02f); // Smaller mass for other particles
+        particles[i].force_x = particles[i].force_y = particles[i].force_z = 0.0f;
+    }
+}
+
+// initialize particles for 2 galaxies
+void initialize_particles(vector<Particle>& particles, int n) {
+    int half_num = n / 2;
+
+    // add central particle for 1 galaxy
+    particles[0] = { -galaxy_distance / 2, 0, 0, 0, 0, 0, 0, 0, 0, 10.0f };
+
+    // add central particle for 2  galaxy
+    particles[half_num] = { galaxy_distance / 2, 0, 0, 0, 0, 0, 0, 0, 0, 10.0f };
+
+    // trigger 1 galaxy around its central particle
+    initialize_galaxy_particles(particles, 1, half_num - 1, -galaxy_distance / 2, 0, 0, 0, 0.1f, 0);
+
+    // trigger 2 galaxy around its central particle
+    initialize_galaxy_particles(particles, half_num + 1, half_num - 1, galaxy_distance / 2, 0, 0, 0, -0.1f, 0);
+}
+
+void compute_forces(vector<Particle>& particles, int n) {
+    for (int i = 0; i < n; ++i) {
+        particles[i].force_x = particles[i].force_y = particles[i].force_z = 0.0f;
+    }
+
+    for (int i = 0; i < n; ++i) {
+        for (int j = 0; j < n; ++j) {
+            if (i != j) {
+                float dx = particles[j].x - particles[i].x;
+                float dy = particles[j].y - particles[i].y;
+                float dz = particles[j].z - particles[i].z;
+                float distSq = dx * dx + dy * dy + dz * dz + softening;
+                float invDist = 1.0f / sqrtf(distSq);
+                float invDist3 = invDist * invDist * invDist;
+
+                float F = gravity_const * particles[j].mass * invDist3;
+                particles[i].force_x += dx * F;
+                particles[i].force_y += dy * F;
+                particles[i].force_z += dz * F;
+            }
+        }
+    }
+}
+
+void update_positions(vector<Particle>& particles, int n, float dt) {
+    for (int i = 0; i < n; ++i) {
+        particles[i].velocity_x += particles[i].force_x / particles[i].mass * dt;
+        particles[i].velocity_y += particles[i].force_y / particles[i].mass * dt;
+        particles[i].velocity_z += particles[i].force_z / particles[i].mass * dt;
+        particles[i].velocity_x *= damping_factor;
+        particles[i].velocity_y *= damping_factor;
+        particles[i].velocity_z *= damping_factor;
+        particles[i].x += particles[i].velocity_x * dt;
+        particles[i].y += particles[i].velocity_y * dt;
+        particles[i].z += particles[i].velocity_z * dt;
+    }
+}
+
+void draw_particles(const vector<Particle>& particles) {
+    glBegin(GL_POINTS);
+    for (const auto& particle : particles) {
+        glVertex3f(particle.x, particle.y, particle.z);
+    }
+    glEnd();
+}
+
+size_t get_memory_used() {
+    PROCESS_MEMORY_COUNTERS memCounter;
+    BOOL result = GetProcessMemoryInfo(GetCurrentProcess(), &memCounter, sizeof(memCounter));
+    return result ? memCounter.WorkingSetSize : 0;
+}
+
+int main() {
+    if (!glfwInit()) {
+        cerr << "Failed to initialize GLFW" << endl;
+        return -1;
+    }
+
+    int window_width = 1600;
+    int window_height = 1200;
+
+    // Create the window
+    GLFWwindow* galaxy_window = glfwCreateWindow(window_width, window_height, "N-Body Simulation (two galaxies)", NULL, NULL);
+    if (!galaxy_window) {
+        cerr << "Not able to create GLFW window" << endl;
+        glfwTerminate();
+        return -1;
+    }
+
+    GLFWmonitor* primary_monitor = glfwGetPrimaryMonitor();
+    const GLFWvidmode* video_mode = glfwGetVideoMode(primary_monitor);
+
+    // Centralize window on the screen
+    int screen_width = video_mode->width;
+    int screen_height = video_mode->height;
+    int window_x = (screen_width - window_width) / 2;
+    int window_y = (screen_height - window_height) / 2;
+    glfwSetWindowPos(galaxy_window, window_x, window_y);
+
+    glfwMakeContextCurrent(galaxy_window);
+
+    if (glewInit() != GLEW_OK) {
+        cerr << "Not able to initialize GLEW" << endl;
+        return -1;
+    }
+
+    glPointSize(2.0f);
+
+    int particles_number = 1000; // Number of particles
+    float  time_step = 0.01f; //time step 
+    vector<Particle> particles(particles_number);
+
+    initialize_particles(particles, particles_number);
+
+    // Set the viewport to match the window size
+    int width, height;
+    glfwGetFramebufferSize(galaxy_window, &width, &height);
+    glViewport(0, 0, width, height);
+
+    // Setup orthographic projection to center the view
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(-5.0, 5.0, -5.0, 5.0, -5.0, 5.0);
+    glMatrixMode(GL_MODELVIEW);
+
+    auto start_time = high_resolution_clock::now();
+    auto end_time = start_time + seconds(10);
+
+    while (!glfwWindowShouldClose(galaxy_window) && high_resolution_clock::now() < end_time) {
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        // compute forces and update positions
+        compute_forces(particles, particles_number);
+        update_positions(particles, particles_number, time_step);
+
+        // draw particles
+        draw_particles(particles);
+
+        glfwSwapBuffers(galaxy_window);
+        glfwPollEvents();
+    }
+
+    glfwDestroyWindow(galaxy_window);
+    glfwTerminate();
+
+    // calc memory usage
+    size_t memory_used = get_memory_used();
+    cout << "Memory used: " << memory_used << " bytes" << endl;
+
+    return 0;
+}
