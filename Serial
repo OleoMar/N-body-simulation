@@ -19,10 +19,10 @@ using std::chrono::seconds;
 using std::chrono::duration_cast;
 
 // Constants
-const float gravity_const = 0.01f;
-const float damping_factor = 0.999f;
-const float softening = 0.01f;
-const float galaxy_distance = 2.0f;
+const float gravity_const = 0.01f; 
+const float damping_factor = 0.999f; 
+const float softening = 0.01f; 
+const float galaxy_distance = 2.0f; 
 struct Particle {
     float x, y, z;
     float velocity_x, velocity_y, velocity_z;
@@ -30,6 +30,7 @@ struct Particle {
     float mass;
 };
 
+// generate random float between min and max
 inline float random_float(float min, float max) {
     return min + static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / (max - min)));
 }
@@ -59,10 +60,10 @@ void initialize_particles(vector<Particle>& particles, int n) {
     int half_num = n / 2;
 
     // add central particle for 1 galaxy
-    particles[0] = { -galaxy_distance / 2, 0, 0, 0, 0, 0, 0, 0, 0, 10.0f };
+    particles[0] = { -galaxy_distance / 2, 0, 0, 0, 0, 0, 0, 0, 0, 10.0f }; 
 
     // add central particle for 2  galaxy
-    particles[half_num] = { galaxy_distance / 2, 0, 0, 0, 0, 0, 0, 0, 0, 10.0f };
+    particles[half_num] = { galaxy_distance / 2, 0, 0, 0, 0, 0, 0, 0, 0, 10.0f }; 
 
     // trigger 1 galaxy around its central particle
     initialize_galaxy_particles(particles, 1, half_num - 1, -galaxy_distance / 2, 0, 0, 0, 0.1f, 0);
