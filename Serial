@@ -18,7 +18,7 @@ using std::chrono::high_resolution_clock;
 using std::chrono::seconds;
 using std::chrono::duration_cast;
 
-// Constants
+// constants
 const float gravity_const = 0.01f; 
 const float damping_factor = 0.999f; 
 const float softening = 0.01f; 
@@ -133,7 +133,7 @@ int main() {
     int window_width = 1600;
     int window_height = 1200;
 
-    // Create the window
+    // create the window
     GLFWwindow* galaxy_window = glfwCreateWindow(window_width, window_height, "N-Body Simulation (two galaxies)", NULL, NULL);
     if (!galaxy_window) {
         cerr << "Not able to create GLFW window" << endl;
@@ -144,7 +144,7 @@ int main() {
     GLFWmonitor* primary_monitor = glfwGetPrimaryMonitor();
     const GLFWvidmode* video_mode = glfwGetVideoMode(primary_monitor);
 
-    // Centralize window on the screen
+    // centralize window on the screen
     int screen_width = video_mode->width;
     int screen_height = video_mode->height;
     int window_x = (screen_width - window_width) / 2;
@@ -166,12 +166,12 @@ int main() {
 
     initialize_particles(particles, particles_number);
 
-    // Set the viewport to match the window size
+    // match the window size
     int width, height;
     glfwGetFramebufferSize(galaxy_window, &width, &height);
     glViewport(0, 0, width, height);
 
-    // Setup orthographic projection to center the view
+    // setup projection to center the view
     glMatrixMode(GL_PROJECTION);
     glLoadIdentity();
     glOrtho(-5.0, 5.0, -5.0, 5.0, -5.0, 5.0);
