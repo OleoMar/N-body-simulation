@@ -5,8 +5,6 @@
 #include <cstdlib>
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
-#include <chrono>
-#include <thread>
 #include <windows.h>
 #include <psapi.h>
 #include <omp.h>
@@ -15,9 +13,6 @@ using std::cerr;
 using std::endl;
 using std::vector;
 using std::cout;
-using std::chrono::high_resolution_clock;
-using std::chrono::seconds;
-using std::chrono::duration_cast;
 
 // constants
 const float gravity_const = 0.01f;
@@ -31,7 +26,7 @@ struct Particle {
     float mass;
 };
 
-
+// generate random float between min and max
 inline float random_float(float min, float max) {
     return min + static_cast<float>(rand()) / (static_cast<float>(RAND_MAX / (max - min)));
 }
@@ -166,7 +161,7 @@ int main() {
     glPointSize(2.0f);
 
     int particles_number = 1000; // Number of particles
-    float  time_step = 0.01f; //time step 
+    float time_step = 0.01f; //time step 
     vector<Particle> particles(particles_number);
 
     initialize_particles(particles, particles_number);
@@ -182,10 +177,7 @@ int main() {
     glOrtho(-5.0, 5.0, -5.0, 5.0, -5.0, 5.0);
     glMatrixMode(GL_MODELVIEW);
 
-    auto start_time = high_resolution_clock::now();
-    auto end_time = start_time + seconds(10);
-
-    while (!glfwWindowShouldClose(galaxy_window) && high_resolution_clock::now() < end_time) {
+    while (!glfwWindowShouldClose(galaxy_window)) {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         // compute forces and update positions
