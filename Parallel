@@ -19,7 +19,7 @@ using std::chrono::high_resolution_clock;
 using std::chrono::seconds;
 using std::chrono::duration_cast;
 
-// Constants
+// constants
 const float gravity_const = 0.01f;
 const float damping_factor = 0.999f;
 const float softening = 0.01f;
